@@ -30,7 +30,7 @@ const Footer = () => {
             <FontAwesomeIcon icon={faGithub} className="w-6 h-6" />
           </a>
           <a 
-            href="https://instagram.com/sandipeyy_" 
+            href="https://instagram.com/sandip.gg_" 
             target="_blank" 
             rel="noopener noreferrer" 
             aria-label="Instagram"

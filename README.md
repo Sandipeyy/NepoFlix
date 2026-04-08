@@ -1,7 +1,3 @@
-> [!IMPORTANT]
-> This repository contains the **legacy open-source version** of **NepoFlix**.  
-> The **new NepoFlix is fully ready and live** at [**nepoflix.micorp.pro**](https://nepoflix.micorp.pro/), so this version is now **archived**.  
-> You can still explore and use this open-source version, but all new updates and development happen on the live version!
 
 <div align="center">
 
@@ -79,8 +75,8 @@ You are free to use, modify, and share it — but you **must** also give credit 
 
 ## 👨‍💻 Author
 **Sandip Gurung**  
-- GitHub: [@Sandipeyy](https://github.com/Sandipeyy)  
-- Instagram: [@sandipeyy_](https://instagram.com/sandipeyy_)
+- GitHub: [Sandipeyy](https://github.com/Sandipeyy)  
+- Instagram: [sandip.gg_](https://instagram.com/sandip.gg_)
 
 ---
 

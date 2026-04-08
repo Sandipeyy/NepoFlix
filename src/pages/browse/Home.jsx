@@ -19,8 +19,6 @@ import { SpotlightSkeleton } from '../../components/Skeletons.jsx';
 import EnhancedCategorySection from '../../components/enhanced-carousel.jsx';
 import config from '../../config.json';
 import { useHomeStore } from '../../store/homeStore.js';
-{import { useEffect, useState } from "react"
-import { XIcon } from "lucide-react"
 
 export default function AppPromoPopup() {
   const [isPopupOpen, setIsPopupOpen] = useState(false)
