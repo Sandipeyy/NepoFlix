@@ -19,6 +19,12 @@ import { SpotlightSkeleton } from '../../components/Skeletons.jsx';
 import EnhancedCategorySection from '../../components/enhanced-carousel.jsx';
 import config from '../../config.json';
 import { useHomeStore } from '../../store/homeStore.js';
+{import { useEffect, useState } from "react"
+import { XIcon } from "lucide-react"
+
+export default function AppPromoPopup() {
+  const [isPopupOpen, setIsPopupOpen] = useState(false)
+  const [dontShow, setDontShow] = useState(false)
 
 const { tmdbBaseUrl } = config;
 const STALE_MS = 5 * 60 * 1000; // 5 minutes
@@ -429,54 +435,81 @@ const Home = () => {
 
       <QuickSearch isOpen={isQuickSearchOpen} onOpenChange={setIsQuickSearchOpen} />
 
-      {/* Popup */}
-      {isPopupOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fadeIn">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full relative text-center shadow-lg animate-slideIn">
-            <button
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-900 dark:hover:text-white"
-              onClick={handlePopupClose}
-            >
-              <XIcon size={20} />
-            </button>
+  // Show popup
+  useEffect(() => {
+    const hidden = localStorage.getItem("hideAppPopup")
+    if (!hidden) {
+      setIsPopupOpen(true)
+    }
+  }, [])
 
-            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
-              Welcome to NepoFlix! 
-            </h2>
+  // Disable background scroll
+  useEffect(() => {
+    document.body.style.overflow = isPopupOpen ? "hidden" : "auto"
+    return () => (document.body.style.overflow = "auto")
+  }, [isPopupOpen])
 
-            <p className="text-gray-700 dark:text-gray-200">
-              Check out the new live version of NepoFlix and enjoy movies, TV shows, and anime anytime, anywhere.
-            </p>
+  const handlePopupClose = () => {
+    if (dontShow) {
+      localStorage.setItem("hideAppPopup", "true")
+    }
+    setIsPopupOpen(false)
+  }
 
-            <div className="mt-4 flex flex-col gap-2">
-              <a
-                href="https://nepoflix.micorp.pro/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700"
-              >
-                Visit Live NepoFlix
-              </a>
+  if (!isPopupOpen) return null
 
-              <button
-                className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700"
-                onClick={handlePopupClose}
-              >
-                Got it!
-              </button>
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 animate-fadeIn">
+      <div className="relative w-full max-w-md mx-auto mb-4 rounded-2xl
+                      bg-neutral-900 text-white shadow-2xl
+                      animate-slideUp overflow-hidden">
 
-              <label className="flex items-center justify-center gap-2 mt-2 text-gray-600 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={dontShow}
-                  onChange={(e) => setDontShow(e.target.checked)}
-                  className="accent-purple-600"
-                />
-                Don’t show again
-              </label>
-            </div>
-          </div>
+        {/* Close Button */}
+        <button
+          onClick={handlePopupClose}
+          className="absolute top-3 right-3 text-white/70 hover:text-white"
+        >
+          <XIcon size={20} />
+        </button>
+
+        {/* Content */}
+        <div className="p-5">
+          <h3 className="text-lg font-semibold mb-2">
+            Better on App
+          </h3>
+
+          <p className="text-sm text-white/70 mb-4">
+            HD • No Ads
+          </p>
+
+          {/* CTA */}
+          <a
+            href="https://nepoflix.micorp.pro/download"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full text-center py-3 rounded-xl
+                       bg-gradient-to-r from-cyan-400 to-green-400
+                       text-black font-semibold hover:opacity-90 transition"
+          >
+            Download App
+          </a>
+
+          {/* Don't show again */}
+          <label className="mt-4 flex items-center justify-center gap-2
+                            text-xs text-white/60">
+            <input
+              type="checkbox"
+              checked={dontShow}
+              onChange={(e) => setDontShow(e.target.checked)}
+              className="accent-green-400"
+            />
+            Don’t show again
+          </label>
         </div>
+      </div>
+    </div>
+  )
+}
       )}
     </div>
   );
