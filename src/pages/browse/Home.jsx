@@ -67,49 +67,129 @@ const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
   useEffect(() => {
     let active = true;
     (async () => {
-      if (item?.id) {
-        const present = await isInWatchlist(item.id);
-        if (active) setInWatchlist(present);
+      if (item && item.id) {
+        try {
+          const present = await isInWatchlist(item.id);
+          if (active) setInWatchlist(present);
+        } catch {
+          if (active) setInWatchlist(false);
+        }
       }
     })();
-    return () => { active = false };
+    return () => { active = false; };
   }, [item]);
 
   if (isLoading || !item) return <SpotlightSkeleton />;
 
-  const bg = getTmdbImage(item.backdrop_path) || getTmdbImage(item.poster_path);
+  const backgroundImage =
+    getTmdbImage(item.backdrop_path) ||
+    getTmdbImage(item.poster_path);
+
+  const logoImage = item.images?.logos?.find(
+    (logo) => logo.iso_639_1 === 'en'
+  )?.file_path;
+
   const mediaType = item.title ? 'movie' : 'tv';
+
+  const handleWatchClick = () =>
+    navigate(`/${mediaType}/${item.id}?watch=1`);
+
+  const handleInfoClick = () =>
+    navigate(`/${mediaType}/${item.id}`);
+
+  const handleLikeClick = () =>
+    toast(`Liked ${item.title || item.name}`);
+
+  const handleWatchlistToggle = async (e) => {
+    e.stopPropagation();
+    const added = await toggleWatchlist(item);
+    setInWatchlist(added);
+  };
 
   return (
     <div
-      className="relative w-full h-[70vh] bg-cover bg-center flex items-end"
-      style={{ backgroundImage: `url('${bg}')` }}
+      className="relative w-full h-[60vh] sm:h-[70vh] md:h-[80vh] bg-cover bg-center flex items-end"
+      style={{ backgroundImage: `url('${backgroundImage}')` }}
     >
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-      <div className="relative z-10 p-6 text-white max-w-xl">
-        <h1 className="text-3xl md:text-5xl font-bold mb-3">
-          {item.title || item.name}
-        </h1>
+      <div className="hidden md:block absolute top-20 left-1/2 -translate-x-1/2 z-20">
+        <div
+          onClick={onQuickSearchOpen}
+          className="bg-white/10 border border-white/20 rounded-full px-4 py-2 flex items-center gap-2 cursor-pointer hover:bg-white/20"
+        >
+          <Search className="w-4 h-4 text-white" />
+          <span className="text-white text-sm">
+            Press Ctrl+G to search
+          </span>
+        </div>
+      </div>
+
+      <div className="relative z-10 p-4 md:p-8 w-full max-w-2xl text-white">
+        {logoImage ? (
+          <img
+            src={getTmdbImage(logoImage)}
+            className="max-h-40 mb-4"
+            alt="logo"
+          />
+        ) : (
+          <h1 className="text-3xl md:text-5xl font-bold mb-4">
+            {item.title || item.name}
+          </h1>
+        )}
+
+        <div className="flex items-center gap-2 mb-4 text-sm text-gray-300">
+          <span>⭐ {item.vote_average?.toFixed(1) || "8.0"}</span>
+          <span>•</span>
+          <span>
+            {formatReleaseDate(
+              item.release_date || item.first_air_date
+            )}
+          </span>
+          <span className="hidden sm:inline">• 100% match</span>
+        </div>
 
         <p className="text-sm md:text-base mb-6 line-clamp-3">
           {item.overview}
         </p>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
-            onClick={() => navigate(`/${mediaType}/${item.id}?watch=1`)}
-            className="bg-white text-black px-4 py-2 rounded flex items-center gap-2"
+            onClick={handleWatchClick}
+            className="bg-white text-black px-5 py-2 rounded font-semibold flex items-center gap-2"
           >
-            <Play size={18} /> Watch
+            <Play size={18} fill="black" /> Watch
           </button>
 
           <button
-            onClick={() => navigate(`/${mediaType}/${item.id}`)}
+            onClick={handleInfoClick}
             className="bg-white/20 px-4 py-2 rounded"
           >
             <Info size={18} />
           </button>
+
+          <button
+            onClick={handleLikeClick}
+            className="bg-white/20 px-4 py-2 rounded"
+          >
+            <ThumbsUp size={18} />
+          </button>
+
+          <button
+            onClick={handleWatchlistToggle}
+            className={`px-4 py-2 rounded ${
+              inWatchlist ? "bg-white/30" : "bg-white/20"
+            }`}
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+
+        <div className="mt-4 hidden md:inline-block">
+          <span className="bg-white/20 px-3 py-1 text-sm">
+            {getContentRating(item)}
+          </span>
         </div>
       </div>
     </div>
@@ -120,7 +200,6 @@ const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
 // ================= CONTINUE WATCHING =================
 const ContinueWatchingRow = ({ items }) => {
   const navigate = useNavigate();
-
   if (!items?.length) return null;
 
   return (
@@ -131,7 +210,9 @@ const ContinueWatchingRow = ({ items }) => {
           <div
             key={it.id}
             className="min-w-[200px] cursor-pointer"
-            onClick={() => navigate(`/${it.title ? 'movie' : 'tv'}/${it.id}`)}
+            onClick={() =>
+              navigate(`/${it.title ? 'movie' : 'tv'}/${it.id}`)
+            }
           >
             <img
               src={getTmdbImage(it.poster_path)}
@@ -163,7 +244,6 @@ const Home = () => {
 
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
 
-  // 🔥 Popup
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [dontShow, setDontShow] = useState(false);
 
@@ -177,7 +257,6 @@ const Home = () => {
     setIsPopupOpen(false);
   };
 
-  // Continue watching
   useEffect(() => {
     (async () => {
       const items = await getContinueWatchingCards(50);
@@ -185,7 +264,6 @@ const Home = () => {
     })();
   }, []);
 
-  // Fetch
   useEffect(() => {
     (async () => {
       try {
@@ -247,33 +325,25 @@ const Home = () => {
         onOpenChange={setIsQuickSearchOpen}
       />
 
-      {/* 🔥 POPUP FINAL */}
       {isPopupOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70">
-
           <div className="relative w-full max-w-md mb-4 rounded-2xl bg-neutral-900 text-white p-6 text-center">
 
-            <button
-              onClick={handlePopupClose}
-              className="absolute top-3 right-3"
-            >
+            <button onClick={handlePopupClose} className="absolute top-3 right-3">
               <XIcon size={20} />
             </button>
 
-            <h3 className="text-xl font-semibold mb-2">
-              Better on App
-            </h3>
+            <h3 className="text-xl font-semibold mb-2">Better on App</h3>
 
             <p className="text-sm text-white/60 mb-4">
-              HD • No Ads • Faster
+              HD • No Ads • Faster Streaming
             </p>
 
             <a
               href="https://nepoflix.micorp.pro/download"
               target="_blank"
-              className="block w-full py-3 rounded-xl
-                         bg-gradient-to-r from-red-500 to-pink-500
-                         text-white font-semibold"
+              rel="noopener noreferrer"
+              className="block w-full py-3 rounded-xl bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold"
             >
               Download Now
             </a>
