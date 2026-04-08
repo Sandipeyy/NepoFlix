@@ -58,6 +58,94 @@ const categories = [
   },
 ];
 
+
+// ================= HERO =================
+const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (item?.id) {
+        const present = await isInWatchlist(item.id);
+        if (active) setInWatchlist(present);
+      }
+    })();
+    return () => { active = false };
+  }, [item]);
+
+  if (isLoading || !item) return <SpotlightSkeleton />;
+
+  const bg = getTmdbImage(item.backdrop_path) || getTmdbImage(item.poster_path);
+  const mediaType = item.title ? 'movie' : 'tv';
+
+  return (
+    <div
+      className="relative w-full h-[70vh] bg-cover bg-center flex items-end"
+      style={{ backgroundImage: `url('${bg}')` }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+
+      <div className="relative z-10 p-6 text-white max-w-xl">
+        <h1 className="text-3xl md:text-5xl font-bold mb-3">
+          {item.title || item.name}
+        </h1>
+
+        <p className="text-sm md:text-base mb-6 line-clamp-3">
+          {item.overview}
+        </p>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate(`/${mediaType}/${item.id}?watch=1`)}
+            className="bg-white text-black px-4 py-2 rounded flex items-center gap-2"
+          >
+            <Play size={18} /> Watch
+          </button>
+
+          <button
+            onClick={() => navigate(`/${mediaType}/${item.id}`)}
+            className="bg-white/20 px-4 py-2 rounded"
+          >
+            <Info size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ================= CONTINUE WATCHING =================
+const ContinueWatchingRow = ({ items }) => {
+  const navigate = useNavigate();
+
+  if (!items?.length) return null;
+
+  return (
+    <div>
+      <h2 className="text-white text-xl mb-3">Continue Watching</h2>
+      <div className="flex gap-3 overflow-x-auto">
+        {items.slice(0, MAX_CW_VISIBLE).map((it) => (
+          <div
+            key={it.id}
+            className="min-w-[200px] cursor-pointer"
+            onClick={() => navigate(`/${it.title ? 'movie' : 'tv'}/${it.id}`)}
+          >
+            <img
+              src={getTmdbImage(it.poster_path)}
+              className="rounded-lg"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+
+// ================= MAIN =================
 const Home = () => {
   const {
     categoryData,
@@ -66,24 +154,22 @@ const Home = () => {
     isLoading,
     spotlightLoading,
     error,
-    lastFetchedAt,
     setCategoryData,
     setSpotlightItem,
     setContinueWatchingItems,
     setLoading,
     setError,
-    setLastFetched,
   } = useHomeStore();
 
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
 
-  // ✅ Popup state (ONLY ONE VERSION)
+  // 🔥 Popup
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [dontShow, setDontShow] = useState(false);
 
   useEffect(() => {
-    const hidePopup = localStorage.getItem("dontShowPopup");
-    if (!hidePopup) setIsPopupOpen(true);
+    const hide = localStorage.getItem("dontShowPopup");
+    if (!hide) setIsPopupOpen(true);
   }, []);
 
   const handlePopupClose = () => {
@@ -91,70 +177,59 @@ const Home = () => {
     setIsPopupOpen(false);
   };
 
-  // Continue Watching
+  // Continue watching
   useEffect(() => {
-    let cancelled = false;
     (async () => {
       const items = await getContinueWatchingCards(50);
-      if (!cancelled) setContinueWatchingItems(items ?? []);
+      setContinueWatchingItems(items || []);
     })();
-    return () => { cancelled = true; };
   }, []);
 
-  // Fetch data
+  // Fetch
   useEffect(() => {
-    const now = Date.now();
-    const isFresh = now - (lastFetchedAt || 0) < STALE_MS;
-    const hasCached = Object.keys(categoryData || {}).length > 0 && !!spotlightItem;
-
-    if (isFresh && hasCached) {
-      setLoading({ isLoading: false, spotlightLoading: false });
-      return;
-    }
-
-    const load = async () => {
+    (async () => {
       try {
-        setLoading({ isLoading: true, spotlightLoading: true });
+        setLoading({ isLoading: true });
 
         const results = await Promise.all(
           categories.map(async (c) => {
-            const route = c.url.replace(c.detailUrl, '');
-            const data = await fetchTmdb(route);
+            const data = await fetchTmdb(c.url.replace(c.detailUrl, ""));
             return { ...c, data: data.results || [] };
           })
         );
 
         const next = {};
-        let heroSet = false;
-
         results.forEach((r) => {
           next[r.title] = r.data;
-
-          if (r.updateHero && r.data.length > 0 && !heroSet) {
-            heroSet = true;
+          if (r.updateHero && r.data.length > 0) {
             setSpotlightItem(r.data[0]);
           }
         });
 
         setCategoryData(next);
-        setLastFetched(Date.now());
         setLoading({ isLoading: false });
-      } catch (err) {
-        setError(err.message || 'Failed');
-        setLoading({ isLoading: false });
+      } catch (e) {
+        setError(e.message);
       }
-    };
-
-    load();
+    })();
   }, []);
 
   if (error) return <div className="text-red-500">{error}</div>;
 
   return (
-    <div className="min-h-screen bg-[#090a0a] pb-12 md:pb-0">
+    <div className="min-h-screen bg-[#090a0a]">
+
       <Header />
 
-      <div className="px-2 sm:px-4 md:px-8 py-4 space-y-6">
+      <SpotlightSection
+        item={spotlightItem}
+        isLoading={spotlightLoading}
+        onQuickSearchOpen={() => setIsQuickSearchOpen(true)}
+      />
+
+      <div className="p-4 space-y-6">
+        <ContinueWatchingRow items={continueWatchingItems} />
+
         {Object.keys(categoryData).map((title) => (
           <EnhancedCategorySection
             key={title}
@@ -172,44 +247,50 @@ const Home = () => {
         onOpenChange={setIsQuickSearchOpen}
       />
 
-      {/* ✅ FIXED POPUP */}
+      {/* 🔥 POPUP FINAL */}
       {isPopupOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60">
-          <div className="relative w-full max-w-md mx-auto mb-4 rounded-2xl bg-neutral-900 text-white shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70">
+
+          <div className="relative w-full max-w-md mb-4 rounded-2xl bg-neutral-900 text-white p-6 text-center">
 
             <button
               onClick={handlePopupClose}
-              className="absolute top-3 right-3 text-white/70 hover:text-white"
+              className="absolute top-3 right-3"
             >
               <XIcon size={20} />
             </button>
 
-            <div className="p-5">
-              <h3 className="text-lg font-semibold mb-2">Better on App</h3>
-              <p className="text-sm text-white/70 mb-4">HD • No Ads</p>
+            <h3 className="text-xl font-semibold mb-2">
+              Better on App
+            </h3>
 
-              <a
-                href="https://nepoflix.micorp.pro/download"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full text-center py-3 rounded-xl bg-gradient-to-r from-cyan-400 to-green-400 text-black font-semibold"
-              >
-                Download App
-              </a>
+            <p className="text-sm text-white/60 mb-4">
+              HD • No Ads • Faster
+            </p>
 
-              <label className="mt-4 flex items-center justify-center gap-2 text-xs text-white/60">
-                <input
-                  type="checkbox"
-                  checked={dontShow}
-                  onChange={(e) => setDontShow(e.target.checked)}
-                  className="accent-green-400"
-                />
-                Don’t show again
-              </label>
-            </div>
+            <a
+              href="https://nepoflix.micorp.pro/download"
+              target="_blank"
+              className="block w-full py-3 rounded-xl
+                         bg-gradient-to-r from-red-500 to-pink-500
+                         text-white font-semibold"
+            >
+              Download Now
+            </a>
+
+            <label className="mt-4 flex justify-center gap-2 text-xs text-white/50">
+              <input
+                type="checkbox"
+                checked={dontShow}
+                onChange={(e) => setDontShow(e.target.checked)}
+              />
+              Don’t show again
+            </label>
+
           </div>
         </div>
       )}
+
     </div>
   );
 };
