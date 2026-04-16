@@ -8,7 +8,7 @@ import {
   getContentRating,
   isInWatchlist,
   toggleWatchlist,
-  getContinueWatchingCards, // Supabase + fallback
+  getContinueWatchingCards,
 } from '../../utils.jsx';
 import { Play, ThumbsUp, Plus, Info, Search, ChevronRight, X as XIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,8 +21,8 @@ import config from '../../config.json';
 import { useHomeStore } from '../../store/homeStore.js';
 
 const { tmdbBaseUrl } = config;
-const STALE_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_CW_VISIBLE = 8;       // how many CW cards to show on the home row
+const STALE_MS = 5 * 60 * 1000;
+const MAX_CW_VISIBLE = 8;
 
 const categories = [
   {
@@ -58,9 +58,6 @@ const categories = [
   },
 ];
 
-/* -------------------------------------------------------------
-   Spotlight (unchanged)
---------------------------------------------------------------*/
 const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
   const [inWatchlist, setInWatchlist] = useState(false);
   const navigate = useNavigate();
@@ -77,9 +74,7 @@ const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
         }
       }
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [item]);
 
   if (isLoading || !item) return <SpotlightSkeleton />;
@@ -108,7 +103,6 @@ const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
       <div className="absolute inset-0 bg-gradient-to-t from-[#090a0a]/80 via-black/40 md:via-black/20 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-b from-[#090a0a]/80 md:from-[#090a0a]/60 via-[#090a0a]/10 to-transparent" />
 
-      {/* QuickSearch Bubble - Desktop Only */}
       <div className="hidden md:block absolute top-18 left-1/2 -translate-x-1/2 z-20 animate-fade-in-delayed backdrop-blur-sm">
         <div
           className="bg-white/10 border border-white/20 rounded-full px-4 py-2 flex items-center gap-2 shadow-lg cursor-pointer hover:bg-white/15 transition-all duration-200"
@@ -116,7 +110,7 @@ const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
         >
           <Search className="w-4 h-4 text-white" />
           <span className="text-white text-sm font-medium">
-            Press <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs">Ctrl+G</kbd> to quickly search movies/tv from anywhere
+            Press <kbd className="bg-white/20 px-1.5 py-0.5 rounded text-xs">Ctrl+G</kbd> to quickly search movies/tv
           </span>
         </div>
       </div>
@@ -143,11 +137,7 @@ const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
           <span className="text-neutral-300 text-sm sm:text-base">{formatReleaseDate(item.release_date || item.first_air_date)}</span>
           <span className="text-neutral-300 hidden sm:inline">•</span>
           <span className="text-neutral-300 text-sm sm:text-base hidden sm:inline">
-            {item.runtime
-              ? `${Math.floor(item.runtime / 60)}h ${item.runtime % 60}m`
-              : item.number_of_seasons
-              ? `${item.number_of_seasons} seasons`
-              : '0-100 seasons'}
+            {item.runtime ? `${Math.floor(item.runtime / 60)}h ${item.runtime % 60}m` : item.number_of_seasons ? `${item.number_of_seasons} seasons` : '0-100 seasons'}
           </span>
           <span className="text-neutral-300 hidden sm:inline">•</span>
           <span className="text-green-400 text-sm sm:text-base hidden sm:inline">100% match</span>
@@ -180,9 +170,7 @@ const SpotlightSection = ({ item, isLoading, onQuickSearchOpen }) => {
             </button>
             <button
               onClick={handleWatchlistToggle}
-              className={`text-white p-2 sm:p-2.5 rounded-full transition-all cursor-pointer ${
-                inWatchlist ? 'bg-white/25' : 'bg-white/15 hover:bg-white/25'
-              }`}
+              className={`text-white p-2 sm:p-2.5 rounded-full transition-all cursor-pointer ${inWatchlist ? 'bg-white/25' : 'bg-white/15 hover:bg-white/25'}`}
             >
               <Plus className="w-4 h-4 sm:w-6 sm:h-6" />
             </button>
@@ -309,9 +297,6 @@ const ContinueWatchingRow = ({ items }) => {
   );
 };
 
-/* -------------------------------------------------------------
-   Home
---------------------------------------------------------------*/
 const Home = () => {
   const {
     categoryData,
@@ -330,25 +315,30 @@ const Home = () => {
   } = useHomeStore();
 
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
+
+  // Popup state
+  const [isPopupOpen, setIsPopupOpen] = useState(true);
+  const [dontShow, setDontShow] = useState(false);
+
+  const handlePopupClose = () => {
+    setIsPopupOpen(false);
+  };
+
   const handleQuickSearchOpen = () => setIsQuickSearchOpen(true);
 
-  // Load Continue Watching
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const items = await getContinueWatchingCards(50); // fetch a generous number; we only show MAX_CW_VISIBLE here
+        const items = await getContinueWatchingCards(50);
         if (!cancelled) setContinueWatchingItems(items ?? []);
-      } catch (e) {
-        console.error('CW load error', e);
+      } catch {
         if (!cancelled) setContinueWatchingItems([]);
       }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Categories + spotlight loader (cached freshness)
   useEffect(() => {
     const now = Date.now();
     const isFresh = now - (lastFetchedAt || 0) < STALE_MS;
@@ -400,12 +390,10 @@ const Home = () => {
       } catch (err) {
         setError(err.message || 'Failed to load');
         setLoading({ isLoading: false, spotlightLoading: false });
-        console.error('home load error', err);
       }
     };
 
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {
@@ -420,22 +408,25 @@ const Home = () => {
     <div className="min-h-screen bg-[#090a0a] pb-12 md:pb-0">
       <Header />
 
-      <SpotlightSection item={spotlightItem} isLoading={spotlightLoading} onQuickSearchOpen={handleQuickSearchOpen} />
+      <SpotlightSection
+        item={spotlightItem}
+        isLoading={spotlightLoading}
+        onQuickSearchOpen={handleQuickSearchOpen}
+      />
 
-      <div className="px-2 sm:px-4 md:px-8 py-4 sm:py-6 md:py-8 space-y-6 sm:space-y-8">
-        {/* Single-row Continue Watching with View More */}
-        {continueWatchingItems.length > 0 && <ContinueWatchingRow items={continueWatchingItems} />}
+      <div className="px-2 sm:px-4 md:px-8 py-4 space-y-6">
+        {continueWatchingItems.length > 0 && (
+          <ContinueWatchingRow items={continueWatchingItems} />
+        )}
 
-        {/* Regular categories */}
-        {Object.keys(categoryData).map((title, index) => {
-          const items = categoryData[title] || [];
-          const delay = continueWatchingItems.length > 0 ? (index + 1) * 200 : index * 200;
-          return (
-            <div key={title} className="animate-stagger" style={{ animationDelay: `${delay}ms` }}>
-              <EnhancedCategorySection title={title} items={items} isLoading={isLoading} />
-            </div>
-          );
-        })}
+        {Object.keys(categoryData).map((title) => (
+          <EnhancedCategorySection
+            key={title}
+            title={title}
+            items={categoryData[title]}
+            isLoading={isLoading}
+          />
+        ))}
       </div>
 
       <Footer />
@@ -448,7 +439,6 @@ const Home = () => {
       {isPopupOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70">
           <div className="relative w-full max-w-md mb-4 rounded-2xl bg-neutral-900 text-white p-6 text-center">
-
             <button onClick={handlePopupClose} className="absolute top-3 right-3">
               <XIcon size={20} />
             </button>
@@ -476,7 +466,6 @@ const Home = () => {
               />
               Don’t show again
             </label>
-
           </div>
         </div>
       )}
